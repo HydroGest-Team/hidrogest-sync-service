@@ -16,8 +16,12 @@ public class SyncController {
     }
 
     @PostMapping
-    public ResponseEntity<Map<String, String>> startSync() {
+    public ResponseEntity<?> startSync() {
         String jobId = syncService.startSync();
+        if (jobId == null) {
+            return ResponseEntity.status(409)
+                    .body(Map.of("error", "Ya hay una sincronización en curso"));
+        }
         return ResponseEntity.accepted().body(Map.of("jobId", jobId));
     }
 

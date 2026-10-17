@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
@@ -28,6 +29,7 @@ public class SyncService {
     private MongoClient mongoClient;
 
     private final Map<String, AtomicInteger> jobs = new ConcurrentHashMap<>();
+    private final AtomicBoolean syncEnCurso = new AtomicBoolean(false);
 
     private static final List<String> TABLAS = List.of(
             "tb_clientes",
@@ -42,6 +44,10 @@ public class SyncService {
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     public String startSync() {
+        if (!syncEnCurso.compareAndSet(false, true)) {
+            return null;
+        }
+
         String jobId = UUID.randomUUID().toString();
         AtomicInteger progress = new AtomicInteger(0);
         jobs.put(jobId, progress);
@@ -49,8 +55,6 @@ public class SyncService {
         new Thread(() -> {
             try {
                 MongoDatabase db = mongoClient.getDatabase("hidrogest_replica");
-
-                // Leer cuándo fue el último sync
                 LocalDateTime desdeWhen = obtenerUltimoSync(db);
                 LocalDateTime ahora = LocalDateTime.now();
 
@@ -60,11 +64,12 @@ public class SyncService {
                     progress.set((int) Math.round((i + 1) * 100.0 / total));
                 }
 
-                // Guardar timestamp de este sync exitoso
                 guardarUltimoSync(db, ahora);
 
             } catch (Exception e) {
                 e.printStackTrace();
+            } finally {
+                syncEnCurso.set(false);
             }
         }).start();
 
@@ -76,7 +81,6 @@ public class SyncService {
                 .find(Filters.eq("_id", "last_sync"))
                 .first();
         if (meta == null || meta.getString("timestamp") == null) {
-            // Primera vez: traer todo desde el principio
             return LocalDateTime.of(2000, 1, 1, 0, 0, 0);
         }
         return LocalDateTime.parse(meta.getString("timestamp"), FMT);
@@ -109,7 +113,6 @@ public class SyncService {
                 }
                 doc.append(entry.getKey(), valor);
             }
-            // Upsert: si ya existe el registro lo actualiza, si no lo crea
             coleccion.replaceOne(
                     Filters.eq("id", doc.get("id")),
                     doc,
