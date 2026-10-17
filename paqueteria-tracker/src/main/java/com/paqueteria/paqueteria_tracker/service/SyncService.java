@@ -25,7 +25,6 @@ public class SyncService {
 
     private final Map<String, AtomicInteger> jobs = new ConcurrentHashMap<>();
 
-    // Tablas que vamos a replicar
     private static final List<String> TABLAS = List.of(
             "tb_clientes",
             "tb_contadores",
@@ -64,7 +63,16 @@ public class SyncService {
         MongoCollection<Document> coleccion = db.getCollection(tabla);
 
         for (Map<String, Object> fila : filas) {
-            Document doc = new Document(fila);
+            Document doc = new Document();
+            for (Map.Entry<String, Object> entry : fila.entrySet()) {
+                Object valor = entry.getValue();
+                if (valor instanceof java.math.BigInteger) {
+                    valor = ((java.math.BigInteger) valor).longValue();
+                } else if (valor instanceof java.math.BigDecimal) {
+                    valor = ((java.math.BigDecimal) valor).doubleValue();
+                }
+                doc.append(entry.getKey(), valor);
+            }
             coleccion.insertOne(doc);
         }
     }
