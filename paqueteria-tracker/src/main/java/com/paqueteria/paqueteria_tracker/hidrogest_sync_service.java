@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class PaqueteriaTrackerApplication {
+public class hidrogest_sync_service {
 
 	public static void main(String[] args) {
-		SpringApplication.run(PaqueteriaTrackerApplication.class, args);
+		SpringApplication.run(hidrogest_sync_service.class, args);
 	}
 
 }
