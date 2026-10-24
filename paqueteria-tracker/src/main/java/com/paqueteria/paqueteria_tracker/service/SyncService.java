@@ -6,6 +6,8 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.ReplaceOptions;
 import org.bson.Document;
+import org.slf4j.Logger;                          // ← NUEVO
+import org.slf4j.LoggerFactory;                   // ← NUEVO
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Service
 public class SyncService {
 
+    private static final Logger log = LoggerFactory.getLogger(SyncService.class); // ← NUEVO
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -32,12 +36,8 @@ public class SyncService {
     private final AtomicBoolean syncEnCurso = new AtomicBoolean(false);
 
     private static final List<String> TABLAS = List.of(
-            "tb_clientes",
-            "tb_contadores",
-            "tb_tarifas",
-            "tb_usuarios",
-            "tb_lecturas",
-            "tb_pagos"
+            "tb_clientes", "tb_contadores", "tb_tarifas",
+            "tb_usuarios", "tb_lecturas", "tb_pagos"
     );
 
     private static final DateTimeFormatter FMT =
@@ -47,7 +47,6 @@ public class SyncService {
         if (!syncEnCurso.compareAndSet(false, true)) {
             return null;
         }
-
         String jobId = UUID.randomUUID().toString();
         AtomicInteger progress = new AtomicInteger(0);
         jobs.put(jobId, progress);
@@ -58,6 +57,9 @@ public class SyncService {
                 LocalDateTime desdeWhen = obtenerUltimoSync(db);
                 LocalDateTime ahora = LocalDateTime.now();
 
+                log.info("[Sync] Iniciando sincronización. jobId: {}", jobId);  // ← NUEVO
+                log.info("[Sync] Último sync registrado: {}", desdeWhen);       // ← NUEVO
+
                 int total = TABLAS.size();
                 for (int i = 0; i < total; i++) {
                     sincronizarTabla(db, TABLAS.get(i), desdeWhen);
@@ -65,8 +67,9 @@ public class SyncService {
                 }
 
                 guardarUltimoSync(db, ahora);
-
+                log.info("[Sync] Sincronización completada correctamente.");     // ← NUEVO
             } catch (Exception e) {
+                log.error("[Sync] Error durante la sincronización: {}", e.getMessage(), e); // ← NUEVO
                 e.printStackTrace();
             } finally {
                 syncEnCurso.set(false);
@@ -78,8 +81,7 @@ public class SyncService {
 
     private LocalDateTime obtenerUltimoSync(MongoDatabase db) {
         Document meta = db.getCollection("sync_metadata")
-                .find(Filters.eq("_id", "last_sync"))
-                .first();
+                .find(Filters.eq("_id", "last_sync")).first();
         if (meta == null || meta.getString("timestamp") == null) {
             return LocalDateTime.of(2000, 1, 1, 0, 0, 0);
         }
@@ -98,10 +100,14 @@ public class SyncService {
         String sql = "SELECT * FROM " + tabla + " WHERE updated_at > ?";
         List<Map<String, Object>> filas = jdbcTemplate.queryForList(sql, desde);
 
-        if (filas.isEmpty()) return;
+        if (filas.isEmpty()) {
+            log.info("[Sync] {} → sin cambios", tabla);   // ← NUEVO
+            return;
+        }
+
+        log.info("[Sync] {} → {} registro(s) nuevo(s)/modificado(s)", tabla, filas.size()); // ← NUEVO
 
         MongoCollection<Document> coleccion = db.getCollection(tabla);
-
         for (Map<String, Object> fila : filas) {
             Document doc = new Document();
             for (Map.Entry<String, Object> entry : fila.entrySet()) {
