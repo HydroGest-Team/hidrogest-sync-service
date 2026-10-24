@@ -6,14 +6,15 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.ReplaceOptions;
 import org.bson.Document;
-import org.slf4j.Logger;                          // ← NUEVO
-import org.slf4j.LoggerFactory;                   // ← NUEVO
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,7 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Service
 public class SyncService {
 
-    private static final Logger log = LoggerFactory.getLogger(SyncService.class); // ← NUEVO
+    private static final Logger log = LoggerFactory.getLogger(SyncService.class);
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -57,8 +58,8 @@ public class SyncService {
                 LocalDateTime desdeWhen = obtenerUltimoSync(db);
                 LocalDateTime ahora = LocalDateTime.now();
 
-                log.info("[Sync] Iniciando sincronización. jobId: {}", jobId);  // ← NUEVO
-                log.info("[Sync] Último sync registrado: {}", desdeWhen);       // ← NUEVO
+                log.info("[Sync] Iniciando sincronización. jobId: {}", jobId);
+                log.info("[Sync] Último sync registrado: {}", desdeWhen);
 
                 int total = TABLAS.size();
                 for (int i = 0; i < total; i++) {
@@ -67,9 +68,9 @@ public class SyncService {
                 }
 
                 guardarUltimoSync(db, ahora);
-                log.info("[Sync] Sincronización completada correctamente.");     // ← NUEVO
+                log.info("[Sync] Sincronización completada correctamente.");
             } catch (Exception e) {
-                log.error("[Sync] Error durante la sincronización: {}", e.getMessage(), e); // ← NUEVO
+                log.error("[Sync] Error durante la sincronización: {}", e.getMessage(), e);
                 e.printStackTrace();
             } finally {
                 syncEnCurso.set(false);
@@ -101,11 +102,11 @@ public class SyncService {
         List<Map<String, Object>> filas = jdbcTemplate.queryForList(sql, desde);
 
         if (filas.isEmpty()) {
-            log.info("[Sync] {} → sin cambios", tabla);   // ← NUEVO
+            log.info("[Sync] {} → sin cambios", tabla);
             return;
         }
 
-        log.info("[Sync] {} → {} registro(s) nuevo(s)/modificado(s)", tabla, filas.size()); // ← NUEVO
+        log.info("[Sync] {} → {} registro(s) nuevo(s)/modificado(s)", tabla, filas.size());
 
         MongoCollection<Document> coleccion = db.getCollection(tabla);
         for (Map<String, Object> fila : filas) {
@@ -125,6 +126,28 @@ public class SyncService {
                     new ReplaceOptions().upsert(true)
             );
         }
+    }
+
+    public Map<String, Object> getStatus() {
+        MongoDatabase db = mongoClient.getDatabase("hidrogest_replica");
+
+        String ultimoSync = "Nunca";
+        Document meta = db.getCollection("sync_metadata")
+                .find(Filters.eq("_id", "last_sync")).first();
+        if (meta != null && meta.getString("timestamp") != null) {
+            ultimoSync = meta.getString("timestamp");
+        }
+
+        Map<String, Long> colecciones = new LinkedHashMap<>();
+        for (String tabla : TABLAS) {
+            colecciones.put(tabla, db.getCollection(tabla).countDocuments());
+        }
+
+        Map<String, Object> status = new LinkedHashMap<>();
+        status.put("syncEnCurso", syncEnCurso.get());
+        status.put("ultimoSync", ultimoSync);
+        status.put("colecciones", colecciones);
+        return status;
     }
 
     public Integer getProgress(String jobId) {

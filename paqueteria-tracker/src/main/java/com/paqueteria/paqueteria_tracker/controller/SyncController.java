@@ -25,6 +25,11 @@ public class SyncController {
         return ResponseEntity.accepted().body(Map.of("jobId", jobId));
     }
 
+    @GetMapping("/status")
+    public ResponseEntity<Map<String, Object>> getStatus() {
+        return ResponseEntity.ok(syncService.getStatus());
+    }
+
     @GetMapping("/{jobId}")
     public ResponseEntity<Map<String, Object>> getProgress(@PathVariable String jobId) {
         Integer progress = syncService.getProgress(jobId);
