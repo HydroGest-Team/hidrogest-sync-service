@@ -27,9 +27,9 @@ La Fase 2 de HidroGest añade cuatro microservicios independientes sobre el mono
 
 ### Diagrama de arquitectura
 
-![Diagrama de arquitectura integrada de HidroGest Fase 2](./docs/diagrama-arquitectura.svg)
+<img width="1536" height="1024" alt="Arquitectura de Sincronización Asíncrona HidroGest" src="https://github.com/user-attachments/assets/6be963c1-2039-444b-b58c-332f813e93eb" />
 
-> El diagrama muestra el flujo completo: cliente → monolito → cuatro microservicios → sus respectivos sistemas externos. El módulo **★ Replicación Asíncrona NoSQL** es el desarrollado en este repositorio.
+
 
 ### Integración entre componentes
 
