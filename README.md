@@ -19,7 +19,7 @@ La Fase 2 de HidroGest añade cuatro microservicios independientes sobre el mono
 
 | Componente | Stack | Puerto | Rol |
 |---|---|---|---|
-| **Monolito HidroGest** | CodeIgniter 4 / Laravel · MySQL | :8080 | Sistema principal — clientes, lecturas, pagos, auth |
+| **Monolito HidroGest** |  Laravel · MySQL | :8080 | Sistema principal — clientes, lecturas, pagos, auth |
 | **Consulta Pública + Captcha** | Next.js / PHP · Captcha API | :3000 | Permite consultar estado de cuenta sin login |
 | **Chatbot con RAG** | Python / Node.js · LLM · VectorDB | :8082 | Chatbot con recuperación de contexto sobre la oficina del agua |
 | **Pagos por Colas** | Java / Node.js · RabbitMQ/SQS · PSP | :8083 | Procesa pagos de forma asíncrona hacia sistemas externos |
